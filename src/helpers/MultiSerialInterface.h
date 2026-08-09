@@ -163,10 +163,21 @@ public:
       return 0;
     }
 
-    // write frame to all enabled interfaces
+    // Write to every enabled interface that actually has a client, and judge
+    // success only on those. An enabled-but-unconnected transport must not drag
+    // the result down: ArduinoSerialInterface::writeFrame() returns 0 until a
+    // companion client has spoken (it deliberately stays off a passive USB
+    // console), so counting it would make every write fail while USB is idle.
+    // Callers treat 0 as failure and retry -- MyMesh's contact sync loops
+    // `while (sent == 0)` -- which would burn retries and re-send the same
+    // frame to the transports that did succeed.
+    //
+    // With nothing connected this reports success for a frame that went
+    // nowhere, matching MultiTransportCompanionInterface::writeFrameToAll();
+    // "no app attached" is not a delivery failure.
     bool allSuccessful = true;
     for(auto iface : _interfaces){
-      if(iface.instance && iface.instance->isEnabled()){
+      if(iface.instance && iface.instance->isEnabled() && iface.instance->isConnected()){
         if(iface.instance->writeFrame(src, len) != len){
           allSuccessful = false;
         }
@@ -174,7 +185,7 @@ public:
     }
 
     // report success if all writes completed successfully
-    return allSuccessful ? len : 0; 
+    return allSuccessful ? len : 0;
   }
 
   size_t checkRecvFrame(uint8_t dest[]) override {
