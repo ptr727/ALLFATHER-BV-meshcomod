@@ -45,10 +45,10 @@ $ sh build.sh build-room-server-firmwares
 Environment Variables:
   DISABLE_DEBUG=1: Disables all debug logging flags (MESH_DEBUG, MESH_PACKET_LOGGING, etc.)
                    If not set, debug flags from variant platformio.ini files are used.
-  MERGE_BIN=1:     Also produce out/<name>-merged.bin (bootloader + partitions + app, flash at
-                   0x0) for ESP32 targets whose env name isn't already merged by default.
-                   Needed for boards outside the release matrix, e.g. ThinkNode M7.
-                   See scripts/build-local.sh and docs/LOCAL_BUILD_M7.md.
+  MERGE_BIN=1:     Also produce out/<env>-<version>-<sha>-merged.bin (bootloader + partitions
+                   + app, flash at 0x0) for ESP32 targets whose env name isn't already merged
+                   by default. Needed for boards outside the release matrix, e.g. ThinkNode M7.
+                   See docs/LOCAL_BUILD_M7.md.
   REPEATER_FIRMWARE_VERSION: For env names ending in _repeater_tcp only, overrides FIRMWARE_VERSION
                    for the compile-time version string and out/ filenames. **Recommended:** repeater train
                    r1.14.1.x — e.g. r1.14.1.0-repeater-tcp (then copy-repeater-release-bins.sh r1.14.1.0).

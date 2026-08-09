@@ -38,10 +38,12 @@ names in the release matrix, and no M7 env matches. Without it you get the app i
 Flash with [esptool-js](https://espressif.github.io/esptool-js/) in Chrome, or:
 
 ```bash
-esptool --chip esp32s3 --port /dev/ttyACM0 --baud 921600 write-flash 0x0 out/<file>-merged.bin
+esptool --chip esp32s3 --port <PORT> --baud 921600 write-flash 0x0 out/<file>-merged.bin
 ```
 
-The board enumerates as a WCH CH343 bridge (`1a86:7522`), not Espressif native USB — note that
+The board enumerates as a WCH CH343 bridge (`1a86:7522`), not Espressif native USB, so `<PORT>`
+is typically `/dev/ttyUSB0` on Linux (ch341 driver) or `COMx` on Windows — not `/dev/ttyACM0`.
+Note also that
 `boards/thinknode_m7.json` still declares `hwids` of `0x303A:0x1001`, which breaks PlatformIO's
 automatic port detection. Serial console is 115200. There is no reset button; the auto-reset
 circuit works, so pulse DTR/RTS (or power cycle) to reset.

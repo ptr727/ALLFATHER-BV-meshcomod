@@ -61,9 +61,11 @@ class UITask : public AbstractUITask {
  
 public:
 
-  // BaseSerialInterface, not MultiSerialInterface: main.cpp only builds a
-  // MultiSerialInterface for MULTI_TRANSPORT_COMPANION envs, and every other
-  // companion still passes ArduinoSerialInterface/SerialBLEInterface/etc.
+  // BaseSerialInterface, not MultiSerialInterface: main.cpp picks a different
+  // concrete transport per env — MultiTransportCompanionInterface for
+  // MULTI_TRANSPORT_COMPANION, MultiSerialInterface for COMPANION_USB_ETHERNET,
+  // and SerialWifiInterface / SerialBLEInterface / ArduinoSerialInterface for
+  // the rest — so only the shared base type fits every call site.
   // Nothing here touches _serial directly — AbstractUITask holds it as a
   // BaseSerialInterface* and all access goes through its accessors — so the
   // narrower type bought nothing and broke those boards. ui-new/UITask.h
