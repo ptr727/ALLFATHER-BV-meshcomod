@@ -61,7 +61,14 @@ class UITask : public AbstractUITask {
  
 public:
 
-  UITask(mesh::MainBoard* board, MultiSerialInterface* serial) : AbstractUITask(board, serial), _display(NULL), _sensors(NULL) {
+  // BaseSerialInterface, not MultiSerialInterface: main.cpp only builds a
+  // MultiSerialInterface for MULTI_TRANSPORT_COMPANION envs, and every other
+  // companion still passes ArduinoSerialInterface/SerialBLEInterface/etc.
+  // Nothing here touches _serial directly — AbstractUITask holds it as a
+  // BaseSerialInterface* and all access goes through its accessors — so the
+  // narrower type bought nothing and broke those boards. ui-new/UITask.h
+  // already takes BaseSerialInterface*.
+  UITask(mesh::MainBoard* board, BaseSerialInterface* serial) : AbstractUITask(board, serial), _display(NULL), _sensors(NULL) {
       _next_refresh = 0;
       ui_started_at = 0;
   }
