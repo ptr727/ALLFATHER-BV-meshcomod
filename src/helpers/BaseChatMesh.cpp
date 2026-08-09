@@ -64,6 +64,14 @@ void BaseChatMesh::sendAckTo(const ContactInfo& dest, const uint8_t* ack_hash, u
 }
 
 void BaseChatMesh::bootstrapRTCfromContacts() {
+  // resetContacts() seeds num_contacts = MAX_ANON_CONTACTS while `contacts` is
+  // still unallocated, so on a device with no stored contacts (first boot, or an
+  // erased SPIFFS) the loop below would walk a null pointer. Upstream's array is
+  // static and always indexable; ours is not. This runs from begin(), after
+  // PSRAM is up, so it is the right place to force the table into existence —
+  // which also keeps every other contacts[] reader safe for the rest of runtime.
+  if (!ensureContacts()) return;   // out of memory: nothing to bootstrap from
+
   uint32_t latest = 0;
   for (int i = 0; i < num_contacts; i++) {
     if (contacts[i].lastmod > latest) {
@@ -75,23 +83,29 @@ void BaseChatMesh::bootstrapRTCfromContacts() {
   }
 }
 
-ContactInfo* BaseChatMesh::allocateContactSlot(bool transient_only) {
-  // Lazily allocate the contact table on first use. On ESP32 we put the table in
-  // PSRAM to keep it off scarce internal DRAM (WiFi needs internal heap). Sized
-  // MAX_CONTACTS + MAX_ANON_CONTACTS to match the upstream array, whose first
-  // MAX_ANON_CONTACTS slots are reserved for transient/anonymous requests.
-  // MUST stay ahead of every contacts[] access below: upstream's array is static
-  // and can be indexed immediately, ours cannot.
-  if (!contacts) {
+// Lazily allocate the contact table on first use. On ESP32 we put the table in
+// PSRAM to keep it off scarce internal DRAM (WiFi needs internal heap). Sized
+// MAX_CONTACTS + MAX_ANON_CONTACTS to match the upstream array, whose first
+// MAX_ANON_CONTACTS slots are reserved for transient/anonymous requests.
+// MUST stay ahead of every contacts[] access: upstream's array is static and can
+// be indexed immediately, ours cannot. Cannot run from the constructor (PSRAM is
+// not up yet), which is why it is lazy rather than eager.
+bool BaseChatMesh::ensureContacts() {
+  if (contacts) return true;
 #if defined(ESP32)
-    contacts = (ContactInfo*)heap_caps_malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS), MALLOC_CAP_SPIRAM);
-    if (!contacts) contacts = (ContactInfo*)heap_caps_malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS), MALLOC_CAP_8BIT);
+  contacts = (ContactInfo*)heap_caps_malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS), MALLOC_CAP_SPIRAM);
+  if (!contacts) contacts = (ContactInfo*)heap_caps_malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS), MALLOC_CAP_8BIT);
 #else
-    contacts = (ContactInfo*)malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
+  contacts = (ContactInfo*)malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
 #endif
-    if (!contacts) return NULL;   // out of memory: behave as "no slot"
-    memset(contacts, 0, sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
-  }
+  if (!contacts) return false;   // out of memory
+  memset(contacts, 0, sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
+  return true;
+}
+
+ContactInfo* BaseChatMesh::allocateContactSlot(bool transient_only) {
+  if (!ensureContacts()) return NULL;   // out of memory: behave as "no slot"
+
   int oldest_idx = -1;
   uint32_t oldest_lastmod = 0xFFFFFFFF;
   if (transient_only) {

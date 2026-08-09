@@ -115,6 +115,7 @@ protected:
     _txt_last_ts = 0;
   }
 
+  bool ensureContacts();   // allocate the lazily-created contact table; false = out of memory
   void bootstrapRTCfromContacts();
 
   void resetContacts() {
