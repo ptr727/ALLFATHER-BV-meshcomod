@@ -55,6 +55,21 @@ static uint32_t _atoi(const char* sp) {
   #endif
 #endif
 
+/* Ethernet-capable board with none of the other exclusive transports selected:
+ * run USB and Ethernet together through MultiSerialInterface. This restores the
+ * arrangement upstream uses (separate transport objects registered with an
+ * interface manager); meshcomod's 1.17.0 merge kept the fork's older
+ * single-`serial_interface` main.cpp and dropped it, which left boards like the
+ * ThinkNode M7 compiling the CH390 driver but never constructing it — no link,
+ * no TCP. See docs/LOCAL_BUILD_M7.md.
+ *
+ * Deliberately ordered after BLE_PIN_CODE so `*_companion_radio_ble` keeps its
+ * existing BLE-only behaviour; only the Ethernet-only envs change. */
+#if defined(ESP32) && defined(ETHERNET_ENABLED) && !defined(MULTI_TRANSPORT_COMPANION) \
+    && !defined(WIFI_SSID) && !defined(BLE_PIN_CODE)
+  #define COMPANION_USB_ETHERNET 1
+#endif
+
 #ifdef ESP32
   #ifdef MULTI_TRANSPORT_COMPANION
     #include <helpers/esp32/MultiTransportCompanionInterface.h>
@@ -74,6 +89,13 @@ static uint32_t _atoi(const char* sp) {
   #elif defined(BLE_PIN_CODE)
     #include <helpers/esp32/SerialBLEInterface.h>
     SerialBLEInterface serial_interface;
+  #elif defined(COMPANION_USB_ETHERNET)
+    #include <helpers/MultiSerialInterface.h>
+    #include <helpers/ArduinoSerialInterface.h>
+    #include <helpers/ethernet/EthernetInterface.h>
+    MultiSerialInterface serial_interface;        // fans out to both transports below
+    ArduinoSerialInterface usb_serial_interface;  // config / CLI over USB
+    ETHERNET_CLASS ethernet_interface;            // CH390: DHCP + companion TCP on ETHERNET_TCP_PORT
   #elif defined(SERIAL_RX)
     #include <helpers/ArduinoSerialInterface.h>
     ArduinoSerialInterface serial_interface;
@@ -443,6 +465,17 @@ void setup() {
     WiFi.begin(WIFI_SSID, WIFI_PWD);
   }
   serial_interface.begin(TCP_PORT);
+#elif defined(COMPANION_USB_ETHERNET)
+  usb_serial_interface.begin(Serial);
+  serial_interface.addInterface(InterfaceType::USB, &usb_serial_interface);
+  // Only register Ethernet if the controller actually came up; a failed begin()
+  // means the CH390 itself is missing/miswired, not merely an unplugged cable.
+  if (ethernet_interface.begin()) {
+    serial_interface.addInterface(InterfaceType::Ethernet, &ethernet_interface);
+    Serial.println("[BOOT] usb+ethernet ok");
+  } else {
+    Serial.println("[BOOT] ethernet FAILED (CH390 init) - USB only");
+  }
 #elif defined(BLE_PIN_CODE)
   serial_interface.begin(BLE_NAME_PREFIX, the_mesh.getNodePrefs()->node_name, the_mesh.getBLEPin());
 #elif defined(SERIAL_RX)
@@ -626,6 +659,12 @@ void loop() {
   }
 #endif
   the_mesh.loop();
+#ifdef COMPANION_USB_ETHERNET
+  // Nothing else in this firmware drives BaseSerialInterface::loop(); the other
+  // transports don't need it, but the Ethernet one accepts clients and pumps the
+  // socket here. Matches upstream's `interface_manager.loop()`.
+  serial_interface.loop();
+#endif
   sensors.loop();
   rtc_clock.tick();
 
