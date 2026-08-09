@@ -70,8 +70,7 @@ board):
 - BLE companion pairs from the MeshCore client.
 - USB companion connects from the web client.
 - Ethernet: link, DHCP lease, `ETH: listening on TCP port: 5000`, USB live simultaneously.
-
-Not yet verified: a Home Assistant client session over the Ethernet TCP transport.
+- Home Assistant connects over the Ethernet TCP transport and reads telemetry.
 
 ## Remaining gaps
 
@@ -88,3 +87,6 @@ Not yet verified: a Home Assistant client session over the Ethernet TCP transpor
   `MultiSerialInterface*`, which nothing constructs on nRF52. `LilyGo_T-Echo_Card_companion_radio_ble`
   and `_usb` carry the same break that this change fixes for `ui-orig`.
 - **`boards/thinknode_m7.json` `hwids`** do not match the hardware (see above).
+- **No battery reading.** `ESP32Board::getBattMilliVolts()` returns 0 unless `PIN_VBAT_READ` is
+  defined, and the M7 variant does not define it, so clients render 0 percent and 0.000 V. That is
+  accurate for a PoE gateway carrying no battery, but a client cannot tell it apart from a flat one.
