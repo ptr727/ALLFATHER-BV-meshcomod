@@ -98,6 +98,10 @@ bool BaseChatMesh::ensureContacts() {
     return false;
   }
   memset(contacts, 0, sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
+
+  // A failed attempt zeroed the count, so restore the floor that resetContacts() seeds.
+  // Leaving it at zero would hand the reserved anonymous slots out as permanent contacts.
+  if (num_contacts < MAX_ANON_CONTACTS) num_contacts = MAX_ANON_CONTACTS;
   return true;
 }
 
