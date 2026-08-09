@@ -488,14 +488,16 @@ void setup() {
     // Without it the server invents one from the MAC, which can hold a space and resolve nowhere.
     char hostname[33];
     toHostLabel(the_mesh.getNodePrefs()->node_name, hostname, sizeof(hostname));
-    ethernet_interface.setHostname(hostname);
+    bool host_ok = ethernet_interface.setHostname(hostname);
     // A DHCP hostname only resolves where the server registers it in DNS, which many do not.
     // An mDNS responder answers for the same label as <name>.local regardless of the server.
     // The responder starts before the lease arrives and answers once the interface holds an address.
-    MDNS.begin(hostname);
-    MDNS.addService("meshcore", "tcp", ETHERNET_TCP_PORT);
+    bool mdns_ok = MDNS.begin(hostname);
+    if (mdns_ok) MDNS.addService("meshcore", "tcp", ETHERNET_TCP_PORT);
     serial_interface.addInterface(InterfaceType::Ethernet, &ethernet_interface);
-    Serial.printf("[BOOT] usb+ethernet ok, hostname %s (%s.local)\n", hostname, hostname);
+    // Both results are reported because a silent failure here looks identical to a server that did not register the name.
+    Serial.printf("[BOOT] usb+ethernet ok, hostname '%s' dhcp=%s mdns=%s\n",
+                  hostname, host_ok ? "ok" : "FAILED", mdns_ok ? "ok" : "FAILED");
   } else {
     Serial.println("[BOOT] ethernet FAILED (CH390 init) - USB only");
   }

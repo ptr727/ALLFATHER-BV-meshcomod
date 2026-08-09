@@ -57,7 +57,13 @@ bool CH390EthernetInterface::begin() {
 }
 
 bool CH390EthernetInterface::setHostname(const char* hostname) {
-  return CH390.setHostname(hostname);
+  if (!CH390.setHostname(hostname)) return false;
+
+  // The hostname is copied into the DISCOVER, so a client already running carries the old one.
+  // Restarting it costs nothing before link-up and guarantees the first lease carries the name.
+  CH390.disableDHCP();
+  CH390.enableDHCP();
+  return true;
 }
 
 int CH390EthernetInterface::available() {
