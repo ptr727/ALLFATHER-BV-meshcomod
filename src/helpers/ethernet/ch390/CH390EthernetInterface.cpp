@@ -1,5 +1,4 @@
 #include "CH390EthernetInterface.h"
-#include <esp_system.h>
 
 void onWiFiEvent(WiFiEvent_t event) {
   switch(event){
@@ -37,16 +36,6 @@ bool CH390EthernetInterface::begin() {
   config.spi_sck_gpio = ETH_SCLK_PIN;
   config.spi_cs_gpio = ETH_CS_PIN;
   config.int_gpio = ETH_INT_PIN;
-
-  // The driver otherwise invents a locally administered address carrying no vendor OUI.
-  // Such an address is indistinguishable from a randomized privacy MAC.
-  // A DHCP server that declines to register those leaves the node with no DNS record.
-  // The efuse address is universally administered, and the library applies it before netif attach.
-  uint8_t eth_mac[6];
-  if (esp_read_mac(eth_mac, ESP_MAC_ETH) == ESP_OK) {
-    memcpy(config.mac_addr, eth_mac, sizeof(eth_mac));
-  }
-
   if (!CH390.begin(config)) {
     ETHERNET_DEBUG_PRINTLN("Failed to initialize CH390 hardware.");
     return false;
