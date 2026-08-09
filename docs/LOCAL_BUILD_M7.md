@@ -71,6 +71,12 @@ board):
 - USB companion connects from the web client.
 - Ethernet: link, DHCP lease, `ETH: listening on TCP port: 5000`, USB live simultaneously.
 - Home Assistant connects over the Ethernet TCP transport and reads telemetry.
+- Both LEDs work. Green shows the firmware heartbeat, a 20 ms blip every 4 s that lengthens to
+  200 ms while messages are unread. Blue follows LoRa transmit.
+- The compiled radio defaults seed a fresh device. After the store was cleared the node came up
+  on 927.875 MHz, 62.5 kHz, SF7, CR5 with no client involvement.
+- DHCP-to-DNS registration works. A rename propagated to DNS with no measurable delay, on the
+  same MAC and the same lease.
 
 ## Remaining gaps
 
@@ -87,10 +93,21 @@ board):
   `MultiSerialInterface*`, which nothing constructs on nRF52. `LilyGo_T-Echo_Card_companion_radio_ble`
   and `_usb` carry the same break that this change fixes for `ui-orig`.
 - **`boards/thinknode_m7.json` `hwids`** do not match the hardware (see above).
+- **The ethernet MAC is locally administered.** The CH390 driver invents `E2:72:A1:F1:FE:49`
+  rather than reading efuse, where ESPHome on the same board reports `E0:72:A1:F1:FE:4B`. This
+  was investigated as the cause of a missing DNS record and is not: the record was minted with
+  the locally administered address in place. Aligning it should not be attempted in a release,
+  because a new address on upgrade is an unfamiliar device to any network that quarantines
+  those, which would drop deployed nodes off DNS.
 - **No battery reading.** `ESP32Board::getBattMilliVolts()` returns 0 unless `PIN_VBAT_READ` is
   defined, and the M7 variant does not define it, so clients render 0 percent and 0.000 V. That is
   accurate for a PoE gateway carrying no battery, but a client cannot tell it apart from a flat one.
-- **Garbled device info in the meshcomod web client.** That client renders the device info string
-  as mojibake and shows a battery voltage the firmware never reported. Home Assistant renders the
-  same device from the same firmware correctly, so the defect is in that client's parsing rather
-  than in the firmware, and it is tracked with the client rather than here.
+- **The meshcomod web client mis-parses the device info frame, and the offset is known.** Byte 2
+  of `RESP_CODE_DEVICE_INFO` is `MAX_CONTACTS / 2`, 175, which is invalid UTF-8, and byte 3 is
+  `MAX_GROUP_CHANNELS`, 40. Those are what the mojibake and the stray bracket are. Bytes 8 to 19
+  hold the build date and bytes 20 on the manufacturer name, which is why they appear run
+  together. The client starts reading at offset 2 rather than offset 8, skipping the two byte
+  header but neither the two v3+ count bytes nor the four byte BLE pin, and does not stop at the
+  null separators. The same client reads `Device model` and `Firmware` correctly from that frame,
+  and Home Assistant renders it correctly, so the frame is well formed and `StrHelper::strzcpy`
+  pads every field. The fix belongs in that client.
