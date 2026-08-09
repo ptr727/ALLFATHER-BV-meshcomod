@@ -67,6 +67,9 @@ static uint32_t _atoi(const char* sp) {
 // A label cannot open or close on a hyphen, so the edges are trimmed and an empty result falls back.
 // Output is lowercased by convention, names being case-insensitive, and the caller's buffer caps the 63 octet limit.
 static void toHostLabel(const char* name, char* out, size_t out_len) {
+  if (out == NULL || out_len == 0) return;
+  if (name == NULL) name = "";
+
   size_t w = 0;
   for (const char* p = name; *p && w + 1 < out_len; p++) {
     char c = *p;
