@@ -208,7 +208,7 @@ build_firmware() {
   if [ "$ENV_PLATFORM" == "ESP32_PLATFORM" ]; then
     cp .pio/build/$1/firmware.bin out/${FIRMWARE_FILENAME}.bin 2>/dev/null || true
     # Companions (USB+TCP) + Heltec TCP repeaters: merged image at 0x0 for flasher / full-chip flash.
-    # MERGE_BIN=1 opts any other ESP32 env in — needed for boards outside the release matrix
+    # MERGE_BIN=1 opts any other ESP32 env in, for boards outside the release matrix
     # (e.g. ThinkNode M7), whose env names match none of the suffixes below.
     if [ "$MERGE_BIN" = "1" ] || [[ "$1" == *companion_radio_usb_tcp* ]] || [[ "$1" == *_repeater_tcp ]] || [[ "$1" == *_room_server_multitransport ]]; then
       if $PIO_CMD run -t mergebin -e "$1"; then

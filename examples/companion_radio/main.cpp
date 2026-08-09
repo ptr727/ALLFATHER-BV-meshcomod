@@ -55,16 +55,9 @@ static uint32_t _atoi(const char* sp) {
   #endif
 #endif
 
-/* Ethernet-capable board with none of the other exclusive transports selected:
- * run USB and Ethernet together through MultiSerialInterface. This restores the
- * arrangement upstream uses (separate transport objects registered with an
- * interface manager); meshcomod's 1.17.0 merge kept the fork's older
- * single-`serial_interface` main.cpp and dropped it, which left boards like the
- * ThinkNode M7 compiling the CH390 driver but never constructing it — no link,
- * no TCP. See docs/LOCAL_BUILD_M7.md.
- *
- * Deliberately ordered after BLE_PIN_CODE so `*_companion_radio_ble` keeps its
- * existing BLE-only behaviour; only the Ethernet-only envs change. */
+// Ethernet-capable board with none of the other exclusive transports selected.
+// USB and Ethernet run together through MultiSerialInterface, each registered as its own transport.
+// Ordered after BLE_PIN_CODE so the BLE companion envs keep their existing behavior.
 #if defined(ESP32) && defined(ETHERNET_ENABLED) && !defined(MULTI_TRANSPORT_COMPANION) \
     && !defined(WIFI_SSID) && !defined(BLE_PIN_CODE)
   #define COMPANION_USB_ETHERNET 1
@@ -468,8 +461,7 @@ void setup() {
 #elif defined(COMPANION_USB_ETHERNET)
   usb_serial_interface.begin(Serial);
   serial_interface.addInterface(InterfaceType::USB, &usb_serial_interface);
-  // Only register Ethernet if the controller actually came up; a failed begin()
-  // means the CH390 itself is missing/miswired, not merely an unplugged cable.
+  // A failed begin() means the controller is missing or miswired rather than the cable being unplugged.
   if (ethernet_interface.begin()) {
     serial_interface.addInterface(InterfaceType::Ethernet, &ethernet_interface);
     Serial.println("[BOOT] usb+ethernet ok");
@@ -660,9 +652,7 @@ void loop() {
 #endif
   the_mesh.loop();
 #ifdef COMPANION_USB_ETHERNET
-  // Nothing else in this firmware drives BaseSerialInterface::loop(); the other
-  // transports don't need it, but the Ethernet one accepts clients and pumps the
-  // socket here. Matches upstream's `interface_manager.loop()`.
+  // Nothing else drives BaseSerialInterface::loop(), which the Ethernet transport needs to accept clients.
   serial_interface.loop();
 #endif
   sensors.loop();

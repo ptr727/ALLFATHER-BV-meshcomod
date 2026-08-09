@@ -115,7 +115,8 @@ protected:
     _txt_last_ts = 0;
   }
 
-  bool ensureContacts();   // allocate the lazily-created contact table; false = out of memory
+  // Allocates the lazily-created contact table, returning false when out of memory.
+  bool ensureContacts();
   void bootstrapRTCfromContacts();
 
   void resetContacts() {
