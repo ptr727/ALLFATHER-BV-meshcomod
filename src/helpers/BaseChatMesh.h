@@ -204,7 +204,8 @@ public:
   bool  removeContact(ContactInfo& contact);
   bool  addContact(const ContactInfo& contact);
   int getTotalContactSlots() const { return num_contacts; }
-  int getNumContacts() const { return num_contacts - MAX_ANON_CONTACTS; }  // don't include the reserved slots at start
+  // Clamped because num_contacts is zeroed when allocation fails, which would otherwise report a negative count.
+  int getNumContacts() const { return num_contacts > MAX_ANON_CONTACTS ? num_contacts - MAX_ANON_CONTACTS : 0; }
   bool getLastTxtTxHash4(uint32_t& out_hash4) const {
     if (!has_last_txt_tx_hash4) return false;
     out_hash4 = last_txt_tx_hash4;

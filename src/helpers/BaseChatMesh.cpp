@@ -91,7 +91,12 @@ bool BaseChatMesh::ensureContacts() {
 #else
   contacts = (ContactInfo*)malloc(sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
 #endif
-  if (!contacts) return false;
+  if (!contacts) {
+    // Readers loop on num_contacts without allocating first.
+    // Leaving it seeded here would fault exactly as an unallocated table did.
+    num_contacts = 0;
+    return false;
+  }
   memset(contacts, 0, sizeof(ContactInfo) * (MAX_CONTACTS+MAX_ANON_CONTACTS));
   return true;
 }

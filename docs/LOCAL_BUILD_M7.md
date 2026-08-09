@@ -24,7 +24,7 @@ this board, so these are upstream's environments.
 
 ```bash
 export FIRMWARE_VERSION=v1.17.0
-MERGE_BIN=1 sh build.sh build-firmware ThinkNode_M7_companion_radio_ethernet
+MERGE_BIN=1 bash build.sh build-firmware ThinkNode_M7_companion_radio_ethernet
 ```
 
 `MERGE_BIN=1` is needed because `build.sh` only produces a merged image automatically for env
