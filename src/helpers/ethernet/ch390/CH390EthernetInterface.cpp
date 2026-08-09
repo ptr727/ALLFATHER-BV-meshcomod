@@ -56,6 +56,10 @@ bool CH390EthernetInterface::begin() {
   return true;
 }
 
+bool CH390EthernetInterface::setHostname(const char* hostname) {
+  return CH390.setHostname(hostname);
+}
+
 int CH390EthernetInterface::available() {
   return client.available();
 }

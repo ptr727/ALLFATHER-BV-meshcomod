@@ -61,6 +61,26 @@ static uint32_t _atoi(const char* sp) {
 #if defined(ESP32) && defined(ETHERNET_ENABLED) && !defined(MULTI_TRANSPORT_COMPANION) \
     && !defined(WIFI_SSID) && !defined(BLE_PIN_CODE)
   #define COMPANION_USB_ETHERNET 1
+
+// Reduces a node name to an RFC 1123 label, since a name is free text and a hostname is not.
+// Underscore and every other character outside letters and digits becomes a hyphen, and runs collapse.
+// A label cannot open or close on a hyphen, so the edges are trimmed and an empty result falls back.
+// Output is lowercased by convention, names being case-insensitive, and the caller's buffer caps the 63 octet limit.
+static void toHostLabel(const char* name, char* out, size_t out_len) {
+  size_t w = 0;
+  for (const char* p = name; *p && w + 1 < out_len; p++) {
+    char c = *p;
+    if (c >= 'A' && c <= 'Z') c += 32;
+    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+      out[w++] = c;
+    } else if (w > 0 && out[w - 1] != '-') {
+      out[w++] = '-';
+    }
+  }
+  while (w > 0 && out[w - 1] == '-') w--;
+  out[w] = 0;
+  if (w == 0) StrHelper::strncpy(out, "meshcore", out_len);
+}
 #endif
 
 #ifdef ESP32
@@ -463,8 +483,13 @@ void setup() {
   serial_interface.addInterface(InterfaceType::USB, &usb_serial_interface);
   // A failed begin() means the controller is missing or miswired rather than the cable being unplugged.
   if (ethernet_interface.begin()) {
+    // A DHCP lease carrying the node name gives a stable name to reach the device by.
+    // Without it the server invents one from the MAC, which can hold a space and resolve nowhere.
+    char hostname[33];
+    toHostLabel(the_mesh.getNodePrefs()->node_name, hostname, sizeof(hostname));
+    ethernet_interface.setHostname(hostname);
     serial_interface.addInterface(InterfaceType::Ethernet, &ethernet_interface);
-    Serial.println("[BOOT] usb+ethernet ok");
+    Serial.printf("[BOOT] usb+ethernet ok, hostname %s\n", hostname);
   } else {
     Serial.println("[BOOT] ethernet FAILED (CH390 init) - USB only");
   }
