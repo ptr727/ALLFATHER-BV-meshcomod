@@ -103,6 +103,7 @@ static void toHostLabel(const char* name, char* out, size_t out_len) {
     #include <helpers/esp32/SerialBLEInterface.h>
     SerialBLEInterface serial_interface;
   #elif defined(COMPANION_USB_ETHERNET)
+    #include <ESPmDNS.h>
     #include <helpers/MultiSerialInterface.h>
     #include <helpers/ArduinoSerialInterface.h>
     #include <helpers/ethernet/EthernetInterface.h>
@@ -488,8 +489,13 @@ void setup() {
     char hostname[33];
     toHostLabel(the_mesh.getNodePrefs()->node_name, hostname, sizeof(hostname));
     ethernet_interface.setHostname(hostname);
+    // A DHCP hostname only resolves where the server registers it in DNS, which many do not.
+    // An mDNS responder answers for the same label as <name>.local regardless of the server.
+    // The responder starts before the lease arrives and answers once the interface holds an address.
+    MDNS.begin(hostname);
+    MDNS.addService("meshcore", "tcp", ETHERNET_TCP_PORT);
     serial_interface.addInterface(InterfaceType::Ethernet, &ethernet_interface);
-    Serial.printf("[BOOT] usb+ethernet ok, hostname %s\n", hostname);
+    Serial.printf("[BOOT] usb+ethernet ok, hostname %s (%s.local)\n", hostname, hostname);
   } else {
     Serial.println("[BOOT] ethernet FAILED (CH390 init) - USB only");
   }
