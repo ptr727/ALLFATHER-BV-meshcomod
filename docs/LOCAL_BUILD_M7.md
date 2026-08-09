@@ -90,3 +90,7 @@ board):
 - **No battery reading.** `ESP32Board::getBattMilliVolts()` returns 0 unless `PIN_VBAT_READ` is
   defined, and the M7 variant does not define it, so clients render 0 percent and 0.000 V. That is
   accurate for a PoE gateway carrying no battery, but a client cannot tell it apart from a flat one.
+- **Garbled device info in the meshcomod web client.** That client renders the device info string
+  as mojibake and shows a battery voltage the firmware never reported. Home Assistant renders the
+  same device from the same firmware correctly, so the defect is in that client's parsing rather
+  than in the firmware, and it is tracked with the client rather than here.
