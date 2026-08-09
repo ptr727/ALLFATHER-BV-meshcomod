@@ -124,8 +124,14 @@ protected:
     // still null when this runs at construction — upstream's array is static, ours
     // is not. The lazy alloc zeroes the whole table itself, so skipping the memset
     // while unallocated is safe; doing it unguarded NULL-derefs on boot.
-    if (contacts) memset(contacts, 0, sizeof(contacts[0])*MAX_ANON_CONTACTS);   // set all to have type = ADV_TYPE_NONE(0)
-    num_contacts = MAX_ANON_CONTACTS;  // seed the first contacts for anon requests
+    if (contacts) {
+      memset(contacts, 0, sizeof(contacts[0])*MAX_ANON_CONTACTS);   // set all to have type = ADV_TYPE_NONE(0)
+      num_contacts = MAX_ANON_CONTACTS;  // seed the first contacts for anon requests
+    } else {
+      // Every reader loops on this count and indexes the table without allocating first.
+      // Zero keeps them safe until the table exists, and ensureContacts() restores the floor.
+      num_contacts = 0;
+    }
   }
   void populateContactFromAdvert(ContactInfo& ci, const mesh::Identity& id, const AdvertDataParser& parser, uint32_t timestamp);
   ContactInfo* allocateContactSlot(bool transient_only=false); // helper to find slot for new contact
