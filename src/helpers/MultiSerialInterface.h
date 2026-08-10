@@ -2,6 +2,10 @@
 
 #include "BaseSerialInterface.h"
 
+#ifndef MULTI_SERIAL_CLIENT_ID_LEN
+  #define MULTI_SERIAL_CLIENT_ID_LEN 31
+#endif
+
 #ifndef MAX_INTERFACES
   // ble, usb, wifi, ethernet
   #define MAX_INTERFACES 4
@@ -26,6 +30,27 @@ private:
 
   bool _enabled = false;
   RegisteredInterface _interfaces[MAX_INTERFACES] = {};
+
+  // Index of the interface that produced the last received frame, which is where a reply belongs.
+  int _reply_idx = -1;
+  char _client_ids[MAX_INTERFACES][MULTI_SERIAL_CLIENT_ID_LEN + 1] = {};
+
+  bool validIdx(int i) const {
+    return i >= 0 && i < MAX_INTERFACES && _interfaces[i].instance != nullptr;
+  }
+
+  // Gives an unconfigured client a stable per-transport identity.
+  // Without one every transport shares an empty id, and with it a shared history cursor.
+  static const char* defaultClientId(InterfaceType type) {
+    switch (type) {
+      case InterfaceType::USB:            return "usb";
+      case InterfaceType::Bluetooth:      return "ble";
+      case InterfaceType::WiFi:           return "wifi";
+      case InterfaceType::Ethernet:       return "eth";
+      case InterfaceType::HardwareSerial: return "hwser";
+      default:                            return "";
+    }
+  }
 
 public:
   bool addInterface(InterfaceType type, BaseSerialInterface* iface) {
@@ -157,7 +182,26 @@ public:
     return false;
   }
 
+  // Replies go to the client that asked, which is what BaseSerialInterface documents this for.
+  // Fanning out instead injects one client's response into another's stream.
   size_t writeFrame(const uint8_t src[], size_t len) override {
+    if(!_enabled || len == 0){
+      return 0;
+    }
+
+    if(validIdx(_reply_idx)){
+      BaseSerialInterface* target = _interfaces[_reply_idx].instance;
+      if(target->isEnabled() && target->isConnected()){
+        return target->writeFrame(src, len);
+      }
+      return len;   // The target went away, and a vanished client is not a delivery failure.
+    }
+
+    // Nothing has been received yet, so there is no reply target and a push reaches everyone.
+    return writeFrameToAll(src, len);
+  }
+
+  size_t writeFrameToAll(const uint8_t src[], size_t len) override {
     // don't write when disabled or nothing provided
     if(!_enabled || len == 0){
       return 0;
@@ -187,17 +231,54 @@ public:
     }
 
     // try to read a frame from any enabled interface
-    for(auto iface : _interfaces){
+    for(int i = 0; i < MAX_INTERFACES; i++){
+      auto& iface = _interfaces[i];
       if(iface.instance && iface.instance->isEnabled()){
         size_t frameSize = iface.instance->checkRecvFrame(dest);
         if(frameSize > 0){
-          return frameSize; 
+          _reply_idx = i;
+          return frameSize;
         }
       }
     }
 
     // no frame received
     return 0;
+  }
+
+  // MyMesh pins the target across a contact list sync so CONTACT and END reach whoever got START.
+  int getReplyTarget() const override { return _reply_idx; }
+  void setReplyTarget(int target) override {
+    if(target < 0 || target >= MAX_INTERFACES){
+      _reply_idx = -1;
+    } else {
+      _reply_idx = target;
+    }
+  }
+
+  void setCurrentClientId(const char* id) override {
+    if(!validIdx(_reply_idx)) return;
+    char* slot = _client_ids[_reply_idx];
+    if(id == nullptr){
+      slot[0] = 0;
+      return;
+    }
+    size_t i = 0;
+    while(id[i] && i < MULTI_SERIAL_CLIENT_ID_LEN){ slot[i] = id[i]; i++; }
+    slot[i] = 0;
+  }
+
+  void getCurrentClientId(char* dest, size_t max_len) const override {
+    if(dest == nullptr || max_len == 0) return;
+    dest[0] = 0;
+    if(!validIdx(_reply_idx)) return;
+
+    // An id the app supplied wins, otherwise the transport's own name keeps histories apart.
+    const char* src = _client_ids[_reply_idx][0] ? _client_ids[_reply_idx]
+                                                 : defaultClientId(_interfaces[_reply_idx].type);
+    size_t i = 0;
+    while(src[i] && i + 1 < max_len){ dest[i] = src[i]; i++; }
+    dest[i] = 0;
   }
 
 };
