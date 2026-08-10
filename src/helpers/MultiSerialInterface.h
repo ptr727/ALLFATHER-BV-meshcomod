@@ -82,6 +82,9 @@ public:
     for(int i = 0; i < MAX_INTERFACES; i++){
       if(_interfaces[i].instance == iface){
         _interfaces[i] = {};
+        // The next addInterface() reuses this slot, so a stale id or pin would be inherited.
+        _client_ids[i][0] = 0;
+        if(_reply_idx == i) _reply_idx = -1;
         return true;
       }
     }
@@ -194,7 +197,9 @@ public:
       if(target->isEnabled() && target->isConnected()){
         return target->writeFrame(src, len);
       }
-      return len;   // The target went away, and a vanished client is not a delivery failure.
+      // The target went away, so the frame was not delivered.
+      // Callers commit history on a full-length return, so reporting success would drop it.
+      return 0;
     }
 
     // Nothing has been received yet, so there is no reply target and a push reaches everyone.
@@ -223,6 +228,11 @@ public:
     // report success if all writes completed successfully
     return allSuccessful ? len : 0;
   }
+
+  // A registered interface with no client is skipped above, so a broadcast misses it.
+  // Reporting otherwise advances that client's cursor past a frame it never saw.
+  // The message would then be lost rather than replayed when the client returns.
+  bool companionUnsolicitedPushesBroadcastToAll() const override { return false; }
 
   size_t checkRecvFrame(uint8_t dest[]) override {
     // don't read when disabled
