@@ -95,11 +95,13 @@ board):
 - **`boards/thinknode_m7.json` `hwids`** do not match the hardware (see above).
 - **The ethernet MAC is locally administered.** This platform builds with
   `CONFIG_ESP32S3_UNIVERSAL_MAC_ADDRESSES=2`, so the ESP-IDF derives the ethernet address from
-  the Bluetooth address with the locally administered bit set, giving `E2:72:A1:F1:FE:49` from a
-  base of `E0:72:A1:F1:FE:48`. It carries no vendor OUI. ESPHome on the same board reports
-  `E0:72:A1:F1:FE:4B`, building with four universal addresses where ethernet is base+3 and
-  assigning it with `esp_read_mac(ESP_MAC_ETH)` and `esp_eth_ioctl(ETH_CMD_S_MAC_ADDR)` before
-  attaching the netif. Matching that needs the universal address count changed, since
+  the Bluetooth address with the locally administered bit set. From an illustrative base of
+  `00:00:5E:00:53:00` that gives Bluetooth `00:00:5E:00:53:01` and ethernet `02:00:5E:00:53:01`,
+  which differs from the base in both the first and the last octet and carries no vendor OUI.
+  ESPHome on the same board reports `00:00:5E:00:53:03`, base+3, because it builds with four
+  universal addresses and assigns the ethernet address explicitly with
+  `esp_read_mac(ESP_MAC_ETH)` and `esp_eth_ioctl(ETH_CMD_S_MAC_ADDR)` before attaching the
+  netif. Matching that needs the universal address count changed, since
   `esp_read_mac(ESP_MAC_ETH)` returns the derived value here and writing it back is a no-op.
   Changing it moves the address of every deployed unit, discarding whatever the current one is
   bound to, so it is left alone.
