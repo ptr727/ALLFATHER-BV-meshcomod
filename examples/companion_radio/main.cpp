@@ -62,6 +62,12 @@ static uint32_t _atoi(const char* sp) {
     && !defined(WIFI_SSID) && !defined(BLE_PIN_CODE)
   #define COMPANION_USB_ETHERNET 1
 
+// The ethernet debug macros print to Serial, which carries the companion protocol here.
+// Their output lands mid-frame and a client decodes it as garbage contacts and messages.
+#if defined(ETHERNET_DEBUG_LOGGING)
+  #error "ETHERNET_DEBUG_LOGGING corrupts the USB companion stream, which shares Serial"
+#endif
+
 // Reduces a node name to an RFC 1123 label, since a name is free text and a hostname is not.
 // Underscore and every other character outside letters and digits becomes a hyphen, and runs collapse.
 // A label cannot open or close on a hyphen, so the edges are trimmed and an empty result falls back.
