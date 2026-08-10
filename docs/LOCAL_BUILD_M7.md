@@ -103,9 +103,17 @@ board):
   `esp_read_mac(ESP_MAC_ETH)` returns the derived value here and writing it back is a no-op.
   Changing it moves the address of every deployed unit, discarding whatever the current one is
   bound to, so it is left alone.
-- **No battery reading.** `ESP32Board::getBattMilliVolts()` returns 0 unless `PIN_VBAT_READ` is
-  defined, and the M7 variant does not define it, so clients render 0 percent and 0.000 V. That is
-  accurate for a PoE gateway carrying no battery, but a client cannot tell it apart from a flat one.
+- **A mains powered device reports a battery.** `ESP32Board::getBattMilliVolts()` returns 0
+  unless `PIN_VBAT_READ` is defined, and the M7 defines no such pin because the board is powered
+  over PoE or USB and carries no cell. Zero is indistinguishable from a flat battery, so every
+  client presents the node as critically discharged. The protocol has no way to say a device has
+  no battery, which is where the fix belongs: a device with no cell should report absence rather
+  than zero, and a board should be able to declare that it is externally powered.
+- **The Home Assistant integration exposes battery entities for a device with no battery.** It
+  creates Battery Percentage and Battery Voltage from that zero, so the node shows 0 percent with
+  a low-battery icon and will drive any automation or alert keyed on battery level. Until the
+  protocol can express absence, those entities should be omitted or reported unavailable for a
+  device that reports no cell rather than published as a real reading.
 - **The meshcomod web client mis-parses the device info frame, and the offset is known.** Byte 2
   of `RESP_CODE_DEVICE_INFO` is `MAX_CONTACTS / 2`, 175, which is invalid UTF-8, and byte 3 is
   `MAX_GROUP_CHANNELS`, 40. Those are what the mojibake and the stray bracket are. Bytes 8 to 19
@@ -115,3 +123,7 @@ board):
   null separators. The same client reads `Device model` and `Firmware` correctly from that frame,
   and Home Assistant renders it correctly, so the frame is well formed and `StrHelper::strzcpy`
   pads every field. The fix belongs in that client.
+- **The same client reports a battery voltage the firmware never sent.** It has shown 7.04 V,
+  2.56 V and 0.000 V for a board with no cell, where Home Assistant renders 0.000 V from the same
+  device. The firmware reports zero, so the value is invented by that client's parsing and the
+  fix belongs with the frame offset above.
