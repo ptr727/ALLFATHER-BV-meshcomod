@@ -6,6 +6,9 @@ void ThinkNodeM7Board::begin() {
   // A pin left as INPUT sources no current, so the LED that onBeforeTransmit() drives stays dark.
   // Both are active low, so the idle level is HIGH.
 #ifdef P_LORA_TX_LED
+  // HIGH rather than !LED_STATE_ON deliberately.
+  // LED_STATE_ON describes the status LED, not this one.
+  // This LED takes its polarity from onAfterTransmit() below, which writes HIGH to turn it off.
   pinMode(P_LORA_TX_LED, OUTPUT);
   digitalWrite(P_LORA_TX_LED, HIGH);
 #endif

@@ -192,7 +192,11 @@ public:
       return 0;
     }
 
-    if(validIdx(_reply_idx)){
+    if(_reply_idx >= 0){
+      // A pin to a slot that no longer holds an interface is still a target, just a dead one.
+      // Broadcasting here would put a targeted reply into the other clients' streams.
+      if(!validIdx(_reply_idx)) return 0;
+
       BaseSerialInterface* target = _interfaces[_reply_idx].instance;
       if(target->isEnabled() && target->isConnected()){
         return target->writeFrame(src, len);
