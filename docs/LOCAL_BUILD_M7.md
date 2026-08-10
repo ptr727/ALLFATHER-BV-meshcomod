@@ -93,12 +93,16 @@ board):
   `MultiSerialInterface*`, which nothing constructs on nRF52. `LilyGo_T-Echo_Card_companion_radio_ble`
   and `_usb` carry the same break that this change fixes for `ui-orig`.
 - **`boards/thinknode_m7.json` `hwids`** do not match the hardware (see above).
-- **The ethernet MAC is locally administered.** The CH390 driver invents `E2:72:A1:F1:FE:49`
-  rather than reading efuse, where ESPHome on the same board reports `E0:72:A1:F1:FE:4B`. This
-  was investigated as the cause of a missing DNS record and is not: the record was minted with
-  the locally administered address in place. Aligning it should not be attempted in a release,
-  because a new address on upgrade is an unfamiliar device to any network that quarantines
-  those, which would drop deployed nodes off DNS.
+- **The ethernet MAC is locally administered.** This platform builds with
+  `CONFIG_ESP32S3_UNIVERSAL_MAC_ADDRESSES=2`, so the ESP-IDF derives the ethernet address from
+  the Bluetooth address with the locally administered bit set, giving `E2:72:A1:F1:FE:49` from a
+  base of `E0:72:A1:F1:FE:48`. It carries no vendor OUI. ESPHome on the same board reports
+  `E0:72:A1:F1:FE:4B`, building with four universal addresses where ethernet is base+3 and
+  assigning it with `esp_read_mac(ESP_MAC_ETH)` and `esp_eth_ioctl(ETH_CMD_S_MAC_ADDR)` before
+  attaching the netif. Matching that needs the universal address count changed, since
+  `esp_read_mac(ESP_MAC_ETH)` returns the derived value here and writing it back is a no-op.
+  Changing it moves the address of every deployed unit, discarding whatever the current one is
+  bound to, so it is left alone.
 - **No battery reading.** `ESP32Board::getBattMilliVolts()` returns 0 unless `PIN_VBAT_READ` is
   defined, and the M7 variant does not define it, so clients render 0 percent and 0.000 V. That is
   accurate for a PoE gateway carrying no battery, but a client cannot tell it apart from a flat one.
