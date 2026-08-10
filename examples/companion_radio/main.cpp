@@ -73,13 +73,15 @@ static uint32_t _atoi(const char* sp) {
 // Underscore and every other character outside letters and digits becomes a hyphen, and runs collapse.
 // A label cannot open or close on a hyphen, so the edges are trimmed and an empty result falls back.
 // Output is lowercased by convention, names being case-insensitive, and the caller's buffer caps the 63 octet limit.
-static void toHostLabel(const char* name, char* out, size_t out_len) {
+// The read is bounded by name_len because node_name can load without a terminator.
+// A skipped character does not advance w, so the output bound does not bound the input.
+static void toHostLabel(const char* name, size_t name_len, char* out, size_t out_len) {
   if (out == NULL || out_len == 0) return;
-  if (name == NULL) name = "";
+  if (name == NULL) name_len = 0;
 
   size_t w = 0;
-  for (const char* p = name; *p && w + 1 < out_len; p++) {
-    char c = *p;
+  for (size_t r = 0; r < name_len && name[r] && w + 1 < out_len; r++) {
+    char c = name[r];
     if (c >= 'A' && c <= 'Z') c += 32;
     if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
       out[w++] = c;
@@ -497,7 +499,8 @@ void setup() {
     // A DHCP lease carrying the node name gives a stable name to reach the device by.
     // Without it the server invents one from the MAC, which can hold a space and resolve nowhere.
     char hostname[33];
-    toHostLabel(the_mesh.getNodePrefs()->node_name, hostname, sizeof(hostname));
+    NodePrefs* np = the_mesh.getNodePrefs();
+    toHostLabel(np->node_name, sizeof(np->node_name), hostname, sizeof(hostname));
     bool host_ok = ethernet_interface.setHostname(hostname);
     // A DHCP hostname only resolves where the server registers it in DNS, which many do not.
     // An mDNS responder answers for the same label as <name>.local regardless of the server.
