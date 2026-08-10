@@ -233,10 +233,6 @@ public:
     return allSuccessful ? len : 0;
   }
 
-  // A registered interface with no client is skipped above, so a broadcast misses it.
-  // Reporting otherwise advances that client's cursor past a frame it never saw.
-  // The message would then be lost rather than replayed when the client returns.
-  bool companionUnsolicitedPushesBroadcastToAll() const override { return false; }
 
   size_t checkRecvFrame(uint8_t dest[]) override {
     // don't read when disabled
