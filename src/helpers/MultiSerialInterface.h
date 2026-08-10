@@ -2,8 +2,15 @@
 
 #include "BaseSerialInterface.h"
 
+// Follows MAX_CLIENT_ID_LEN where the companion has already defined it.
+// Two independent limits let one side be raised while the other truncates a client id.
+// That splits the client's history in a way that presents as message loss.
 #ifndef MULTI_SERIAL_CLIENT_ID_LEN
-  #define MULTI_SERIAL_CLIENT_ID_LEN 31
+  #ifdef MAX_CLIENT_ID_LEN
+    #define MULTI_SERIAL_CLIENT_ID_LEN MAX_CLIENT_ID_LEN
+  #else
+    #define MULTI_SERIAL_CLIENT_ID_LEN 31
+  #endif
 #endif
 
 #ifndef MAX_INTERFACES
