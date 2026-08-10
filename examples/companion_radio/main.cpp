@@ -64,7 +64,8 @@ static uint32_t _atoi(const char* sp) {
 
 // The ethernet debug macros print to Serial, which carries the companion protocol here.
 // Their output lands mid-frame and a client decodes it as garbage contacts and messages.
-#if defined(ETHERNET_DEBUG_LOGGING)
+// Tested by value, matching SerialEthernetInterface, so an explicit zero stays a valid way to disable it.
+#if ETHERNET_DEBUG_LOGGING
   #error "ETHERNET_DEBUG_LOGGING corrupts the USB companion stream, which shares Serial"
 #endif
 
